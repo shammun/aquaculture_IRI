@@ -50,30 +50,52 @@ We will start the simulation from year 2001 and continue it to year 2019.
 Now, there are 6939 days from 2001 to 2019. We will run a loop for each of these days and we will need to figure out the corresponding year. The following code finds out 
 
 ```{r}
-days_2001_to_2019 = c(rep(c(rep(365,3),366),4), rep(365, 3))
-days_2001_to_2019
-(cumsum_days = cumsum(days_2001_to_2019))
-all_years = seq(2001,2019,1)
+# days_2001_to_2019 = c(rep(c(rep(365,3),366),4), rep(365, 3))
+days_2017_to_2019 = rep(365, 3)
+(cumsum_days = cumsum(days_2017_to_2019))
+all_years = seq(2017,2019,1)
+
+month_no_leap_year = c(31, 28, 31, 30, 31, 30, 31, 30, 31, 31, 30, 31)
+# length(month_no_leap_year)
+# month_leap_year = c(rep(1, 31), seq(1, 29), seq(1, 31), seq(1,30), seq(1,31), seq(1,30), seq(1,31), seq(1,30),seq(1,31), seq(1, 31), seq(1,30), seq(1,31))
+# length(month_leap_year)
+# month_leap_year = c(31, 29, 31, 30, 31, 30, 31, 30, 31, 31, 30, 31)
+
+(cumsum_month = cumsum(month_no_leap_year))
 
 
 
-find_day_and_year = function(random_day){
+
+find_day_month_and_year = function(random_day){
   position = min(which(random_day<=cumsum_days)) # This is useful to find the year corresponding to a day starting from January 1, 2001
-  all_years = seq(2001,2019,1)
+  all_years = seq(2017,2019,1)
   year_of_the_day = all_years[position]
   if(random_day <= 365){
     (day = random_day)
+    month = min(which(day<=cumsum_month))
   } else{
     (day = random_day - cumsum_days[position - 1])
+    month = min(which(day<=cumsum_month))
   }
-  day_and_year = list(day=day, year = year_of_the_day)
-  return(day_and_year)
+  day_month_and_year = list(day=day, month=month, year = year_of_the_day)
+  return(day_month_and_year)
 }
 
 ```
 
+### Find month
+
 ```{r}
-find_day_and_year(731)
+month_no_leap_year = c(seq(1, 31), seq(1, 28), seq(1, 31), seq(1,30), seq(1,31), seq(1,30), seq(1,31), seq(1,30),seq(1,31), seq(1, 31), seq(1,30), seq(1,31))
+# length(month_no_leap_year)
+month_leap_year = c(seq(1, 31), seq(1, 29), seq(1, 31), seq(1,30), seq(1,31), seq(1,30), seq(1,31), seq(1,30),seq(1,31), seq(1, 31), seq(1,30), seq(1,31))
+# length(month_leap_year)
+
+```
+
+
+```{r}
+find_day_month_and_year(365)
 ```
 
 
@@ -92,7 +114,7 @@ find_day_and_year(731)
 ```
 
 
-#### What is the year of the day and year for day 530 starting from the day January 1, 2001?
+#### What is the year of the day and year for day 530 starting from the day January 1, 2017?
 
 ```{r}
 # # Check the function with other values also
@@ -356,22 +378,161 @@ data_air_khu = data_air_khu[data_air_khu$hour == 6, ]
 initial_temp_sri = data_air_sri$mean_temp - 273.15
 initial_temp_khu = data_air_khu$mean_temp - 273.15
 
-simulated_data = data.frame(layer = rep(c(1,2,3),2), time = rep(6, 6), day = rep(1, 6), year = rep(2001, 6), heat = rep(0, 6), temp = c(rep(initial_temp_sri, 3), rep(initial_temp_khu, 3)), area = c(rep(areas[1], 3), rep(areas[2], 3)))
+simulated_data = data.frame(layer = rep(c(1,2,3),2), time = rep(6, 6), day = rep(1, 6), year = rep(2017, 6), heat = rep(0, 6), temp = c(rep(initial_temp_sri, 3), rep(initial_temp_khu, 3)), area = c(rep(areas[1], 3), rep(areas[2], 3)))
 write.csv(simulated_data, paste0("simulated_data.csv"))
 ```
 
 
 ### Defining helper functions
 
+### Convert dailly solar to 3-hourly
+
+```{r}
+all_data = read.csv("test_input_data_for_simulation.csv")
+all_data = all_data[all_data$year>2016, ]
+month_no_leap_year = c(31, 28, 31, 30, 31, 30, 31, 30, 31, 31, 30, 31)
+(cumsum_month = cumsum(month_no_leap_year))
+all_data$month = rep(rep(c(rep(1, 31), rep(2, 28), rep(3, 31), rep(4,30), rep(5,31), rep(6,30), rep(7,31), rep(8,30),rep(9,31), rep(10, 31), rep(11,30), rep(12,31)),3), 2)
+
+daily_to_three_hourly = read.csv("srad_daily_to_3-hourly.csv")
+
+all_data$SRAD = all_data$insolation # Save the value of "insolation" in the "SRAD" column
+all_data$insolation = NULL # Remove this column
+
+all_data = all_data %>% mutate(SRAD00 = case_when(
+  month == 1 ~ SRAD * daily_to_three_hourly$h0[1],
+  month == 2 ~ SRAD * daily_to_three_hourly$h0[2],
+  month == 3 ~ SRAD * daily_to_three_hourly$h0[3],
+  month == 4 ~ SRAD * daily_to_three_hourly$h0[4],
+  month == 5 ~ SRAD * daily_to_three_hourly$h0[5],
+  month == 6 ~ SRAD * daily_to_three_hourly$h0[6],
+  month == 7 ~ SRAD * daily_to_three_hourly$h0[7],
+  month == 8 ~ SRAD * daily_to_three_hourly$h0[8],
+  month == 9 ~ SRAD * daily_to_three_hourly$h0[9],
+  month == 10 ~ SRAD * daily_to_three_hourly$h0[10],
+  month == 11 ~ SRAD * daily_to_three_hourly$h0[11],
+  month == 12 ~ SRAD * daily_to_three_hourly$h0[12],
+  ))
+
+all_data = all_data %>% mutate(SRAD03 = case_when(
+  month == 1 ~ SRAD * daily_to_three_hourly$h3[1],
+  month == 2 ~ SRAD * daily_to_three_hourly$h3[2],
+  month == 3 ~ SRAD * daily_to_three_hourly$h3[3],
+  month == 4 ~ SRAD * daily_to_three_hourly$h3[4],
+  month == 5 ~ SRAD * daily_to_three_hourly$h3[5],
+  month == 6 ~ SRAD * daily_to_three_hourly$h3[6],
+  month == 7 ~ SRAD * daily_to_three_hourly$h3[7],
+  month == 8 ~ SRAD * daily_to_three_hourly$h3[8],
+  month == 9 ~ SRAD * daily_to_three_hourly$h3[9],
+  month == 10 ~ SRAD * daily_to_three_hourly$h3[10],
+  month == 11 ~ SRAD * daily_to_three_hourly$h3[11],
+  month == 12 ~ SRAD * daily_to_three_hourly$h3[12],
+  ))
+
+all_data = all_data %>% mutate(SRAD06 = case_when(
+  month == 1 ~ SRAD * daily_to_three_hourly$h6[1],
+  month == 2 ~ SRAD * daily_to_three_hourly$h6[2],
+  month == 3 ~ SRAD * daily_to_three_hourly$h6[3],
+  month == 4 ~ SRAD * daily_to_three_hourly$h6[4],
+  month == 5 ~ SRAD * daily_to_three_hourly$h6[5],
+  month == 6 ~ SRAD * daily_to_three_hourly$h6[6],
+  month == 7 ~ SRAD * daily_to_three_hourly$h6[7],
+  month == 8 ~ SRAD * daily_to_three_hourly$h6[8],
+  month == 9 ~ SRAD * daily_to_three_hourly$h6[9],
+  month == 10 ~ SRAD * daily_to_three_hourly$h6[10],
+  month == 11 ~ SRAD * daily_to_three_hourly$h6[11],
+  month == 12 ~ SRAD * daily_to_three_hourly$h6[12],
+  ))
+
+
+all_data = all_data %>% mutate(SRAD09 = case_when(
+  month == 1 ~ SRAD * daily_to_three_hourly$h9[1],
+  month == 2 ~ SRAD * daily_to_three_hourly$h9[2],
+  month == 3 ~ SRAD * daily_to_three_hourly$h9[3],
+  month == 4 ~ SRAD * daily_to_three_hourly$h9[4],
+  month == 5 ~ SRAD * daily_to_three_hourly$h9[5],
+  month == 6 ~ SRAD * daily_to_three_hourly$h9[6],
+  month == 7 ~ SRAD * daily_to_three_hourly$h9[7],
+  month == 8 ~ SRAD * daily_to_three_hourly$h9[8],
+  month == 9 ~ SRAD * daily_to_three_hourly$h9[9],
+  month == 10 ~ SRAD * daily_to_three_hourly$h9[10],
+  month == 11 ~ SRAD * daily_to_three_hourly$h9[11],
+  month == 12 ~ SRAD * daily_to_three_hourly$h9[12],
+  ))
+
+all_data = all_data %>% mutate(SRAD12 = case_when(
+  month == 1 ~ SRAD * daily_to_three_hourly$h12[1],
+  month == 2 ~ SRAD * daily_to_three_hourly$h12[2],
+  month == 3 ~ SRAD * daily_to_three_hourly$h12[3],
+  month == 4 ~ SRAD * daily_to_three_hourly$h12[4],
+  month == 5 ~ SRAD * daily_to_three_hourly$h12[5],
+  month == 6 ~ SRAD * daily_to_three_hourly$h12[6],
+  month == 7 ~ SRAD * daily_to_three_hourly$h12[7],
+  month == 8 ~ SRAD * daily_to_three_hourly$h12[8],
+  month == 9 ~ SRAD * daily_to_three_hourly$h12[9],
+  month == 10 ~ SRAD * daily_to_three_hourly$h12[10],
+  month == 11 ~ SRAD * daily_to_three_hourly$h12[11],
+  month == 12 ~ SRAD * daily_to_three_hourly$h12[12],
+  ))
+
+all_data = all_data %>% mutate(SRAD15 = case_when(
+  month == 1 ~ SRAD * daily_to_three_hourly$h15[1],
+  month == 2 ~ SRAD * daily_to_three_hourly$h15[2],
+  month == 3 ~ SRAD * daily_to_three_hourly$h15[3],
+  month == 4 ~ SRAD * daily_to_three_hourly$h15[4],
+  month == 5 ~ SRAD * daily_to_three_hourly$h15[5],
+  month == 6 ~ SRAD * daily_to_three_hourly$h15[6],
+  month == 7 ~ SRAD * daily_to_three_hourly$h15[7],
+  month == 8 ~ SRAD * daily_to_three_hourly$h15[8],
+  month == 9 ~ SRAD * daily_to_three_hourly$h15[9],
+  month == 10 ~ SRAD * daily_to_three_hourly$h15[10],
+  month == 11 ~ SRAD * daily_to_three_hourly$h15[11],
+  month == 12 ~ SRAD * daily_to_three_hourly$h15[12],
+  ))
+
+all_data = all_data %>% mutate(SRAD18 = case_when(
+  month == 1 ~ SRAD * daily_to_three_hourly$h18[1],
+  month == 2 ~ SRAD * daily_to_three_hourly$h18[2],
+  month == 3 ~ SRAD * daily_to_three_hourly$h18[3],
+  month == 4 ~ SRAD * daily_to_three_hourly$h18[4],
+  month == 5 ~ SRAD * daily_to_three_hourly$h18[5],
+  month == 6 ~ SRAD * daily_to_three_hourly$h18[6],
+  month == 7 ~ SRAD * daily_to_three_hourly$h18[7],
+  month == 8 ~ SRAD * daily_to_three_hourly$h18[8],
+  month == 9 ~ SRAD * daily_to_three_hourly$h18[9],
+  month == 10 ~ SRAD * daily_to_three_hourly$h18[10],
+  month == 11 ~ SRAD * daily_to_three_hourly$h18[11],
+  month == 12 ~ SRAD * daily_to_three_hourly$h18[12],
+  ))
+
+all_data = all_data %>% mutate(SRAD21 = case_when(
+  month == 1 ~ SRAD * daily_to_three_hourly$h21[1],
+  month == 2 ~ SRAD * daily_to_three_hourly$h21[2],
+  month == 3 ~ SRAD * daily_to_three_hourly$h21[3],
+  month == 4 ~ SRAD * daily_to_three_hourly$h21[4],
+  month == 5 ~ SRAD * daily_to_three_hourly$h21[5],
+  month == 6 ~ SRAD * daily_to_three_hourly$h21[6],
+  month == 7 ~ SRAD * daily_to_three_hourly$h21[7],
+  month == 8 ~ SRAD * daily_to_three_hourly$h21[8],
+  month == 9 ~ SRAD * daily_to_three_hourly$h21[9],
+  month == 10 ~ SRAD * daily_to_three_hourly$h21[10],
+  month == 11 ~ SRAD * daily_to_three_hourly$h21[11],
+  month == 12 ~ SRAD * daily_to_three_hourly$h21[12],
+  ))
+
+write.csv(all_data, "input_data_for_simulation_2017_2019.csv")
+```
+
+
 Now, write a function that reads **test_input_data_for_simulation.csv** and reads the pond temperature and meteorological data.
 
 ```{r}
 read_met_data = function(i, area_no){
-  day_year = find_day_and_year(i)
+  day_year = find_day_month_and_year(i)
   day = day_year$day
   year = day_year$year
   # all_data = read.csv("long_data.csv")
-  all_data = read.csv("test_input_data_for_simulation.csv")
+  all_data = read.csv("input_data_for_simulation_2017_2019.csv")
   # all_data = all_data[all_data$doy == day & all_data$year == year, ]
   all_data = all_data[all_data$day == day & all_data$year == year, ]
   all_data = all_data[all_data$district == areas[area_no], ]
@@ -484,6 +645,10 @@ Let's check the value of this function for a particular day, day 2 at 3 PM for S
 calculate_phi_s(2, 6, 1, 2)
 ```
 
+```{r}
+radiation_column_names = colnames(read_met_data(1, 1))[-c(1,2,3,4,5,6,7,8)]
+```
+
 
 ### Now, write a function to calculate phi_sn.
 
@@ -503,29 +668,31 @@ calculate_phi_sn = function(i, day_arg, three_hour, place){
   R_s = 2.2 * (180 * lambda/pi)^(-0.97)
   
   # W_z is wind velocity at 2 meters above the pond surface
-  W_z = wind_speed_2m[place]
+  W_z = wind_speed_2m
   
   # Calculate R, reflectivity adjusted for surface temperature
   R = R_s * (1 - 0.08 * W_z)
   
   # Calculate phi_s
-  phi_s = calculate_phi_s(i, three_hour, place, day_arg) # calculate_phi_s(i, time, place, day_arg)
+  # phi_s = calculate_phi_s(i, three_hour, place, day_arg) # calculate_phi_s(i, time, place, day_arg)
+  phi_s = daily_data[[radiation_column_names[three_hour]]]
   
   # Calculate phi_sn = phi_s * (1 - R)
   phi_sn = phi_s * (1 - R)
   
   # phi_sn for three hours
-  three_hours_phi_sn = phi_sn * 3
+  # three_hours_phi_sn = phi_sn * 3
+  three_hours_phi_sn = phi_sn
   
   # return the value of phi_sn
   return(three_hours_phi_sn)
 }
 ```
 
-Let's check the value of this function **phi_s()** for a particular day, day 1 at 3 AM for Srimangal.
+Let's check the value of this function **phi_s()** for a particular day, day 1 at 3 PM for Srimangal.
 
 ```{r}
-calculate_phi_sn(2, 2, 2, 1)
+calculate_phi_sn(2, 2, 6, 2)
 ```
 
 
@@ -545,7 +712,7 @@ calculate_phi_at = function(three_hour, place, cloud_fraction, day_arg, year_arg
   air_temp = air_temp[air_temp$day == day_arg, ]  
   air_temp = air_temp[air_temp$year == year_arg, ] 
   air_temp = air_temp[air_temp$area == areas[place], ] 
-  t_ak = air_temp$air_temp + 273.15 # Convert to Kelvin
+  t_ak = air_temp$air_temp # Already in Kelvin
 
   # t_ak = ((tmax_air + tmin_air)/2 + (tmax_air - tmin_air)*0.4484 *(sin(2*(pi/24)*(hour + 6) - 2.7489) + 0.2706 * sin(2 * (2 * (pi/24)* (hour + 6) - 2.7489)))) + 273.15
   e = (0.398 * (10 ** (-5)))*(t_ak ** (2.148))
@@ -562,7 +729,7 @@ calculate_phi_at = function(three_hour, place, cloud_fraction, day_arg, year_arg
 Let's check the value of this function **phi_at()** for a particular day, day 1 at 3 PM for Srimangal.
 
 ```{r}
-calculate_phi_at(1, 1, 0.3, 2, 2001)
+calculate_phi_at(6, 2, 0.3, 2, 2017)
 ```
 
 ### Calculate phi_ws
@@ -585,6 +752,7 @@ calculate_phi_ws = function(place, three_hour, layer_no, day_arg, year_arg){
   heat_layers = heat_layers[heat_layers$day == day_arg, ]
   heat_layers =  heat_layers[heat_layers$year == year_arg, ]
   T_wk = heat_layers$temp + 273.15
+  # T_wk = heat_layers$temp
   # Calculate hourly phi_ws
   phi_ws = 0.97 * sigma_const * (T_wk^4)
   # Now, calculate three-hourly phi_ws
@@ -598,7 +766,7 @@ calculate_phi_ws = function(place, three_hour, layer_no, day_arg, year_arg){
 Let's check the value of this function **phi_ws()** for a particular day, day 1, 2001 at 3 AM for Srimangal.
 
 ```{r}
-calculate_phi_ws(1, 1, 1, 1, 2001)
+calculate_phi_ws(2, 4, 1, 1, 2017)
 ```
 
 ### Calculate phi_e
@@ -656,7 +824,7 @@ calculate_phi_e = function(i, place, three_hour, layer_no, day_arg, year_arg){
 ```
 
 ```{r}
-calculate_phi_e(2, 1, 1, 1, 1, 2001) # (i, place, three_hour, layer_no, day_arg, year_arg)
+calculate_phi_e(1, 2, 4, 1, 1, 2017) # (i, place, three_hour, layer_no, day_arg, year_arg)
 ```
 
 
@@ -665,7 +833,7 @@ calculate_phi_c = function(i, place, three_hour, layer_no, day_arg, year_arg){
   # wind speed 2 m above the surface
   daily_data =read_met_data(i, place)
   wind_speed_2m = daily_data$wind_speed_2m
-  W2 = wind_speed_2m[place]
+  W2 = wind_speed_2m
   
   # T_wc is water surface temperature in Celsius
   heat_layers = read.csv("simulated_data.csv")
@@ -705,7 +873,7 @@ calculate_phi_c = function(i, place, three_hour, layer_no, day_arg, year_arg){
 ```
 
 ```{r}
-calculate_phi_c(2, 1, 1, 1, 1, 2001) # (i, place, three_hour, layer_no, day_arg, year_arg)
+calculate_phi_c(1, 2, 4, 1, 1, 2017) # (i, place, three_hour, layer_no, day_arg, year_arg)
 ```
 
 
@@ -748,7 +916,7 @@ calculate_phi_sn_z = function(i, place, three_hour, sdd, layer_number, day_arg){
 ```
 
 ```{r}
-calculate_phi_sn_z(2, 1, 1, 1.5, 1, 1)
+calculate_phi_sn_z(2, 1, 4, 1.5, 1, 1)
 ```
 
 
@@ -770,7 +938,7 @@ calculate_T_sed = function(place, three_hour, day_arg){
 ```
 
 ```{r}
-calculate_T_sed(1, 2, 2)
+calculate_T_sed(1, 4, 2)
 ```
 
 
@@ -806,7 +974,7 @@ calculate_phi_sed = function(place, three_hour, day_arg, year_arg){
 ```
 
 ```{r}
-calculate_phi_sed(1, 1, 1, 2001)
+calculate_phi_sed(1, 4, 1, 2017)
 ```
 
 
@@ -832,14 +1000,12 @@ calculate_phi_gw = function(place, three_hour, day_arg){
 ```
 
 ```{r}
-calculate_phi_gw(1, 1, 1)
+calculate_phi_gw(1, 4, 1)
 ```
 
 
 ```{r}
 calculate_phi_dz = function(place, three_hour, layer_no, day_arg, year_arg){
-
-  
   # T_wc is water surface temperature in Celsius
   
   c_pw = 4.1816 # heat capacity of water, unit kJK-1kg-1
@@ -873,7 +1039,7 @@ calculate_phi_dz = function(place, three_hour, layer_no, day_arg, year_arg){
 ```
 
 ```{r}
-calculate_phi_dz(1, 1, 1, 1, 2001)
+calculate_phi_dz(1, 4, 1, 1, 2017)
 ```
 
 
