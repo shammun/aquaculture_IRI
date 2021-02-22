@@ -31,7 +31,8 @@ longitude = c(91.678491, 89.441359)
 latitude = c(24.303856, 22.800875)
 
 # 3-hourly time starting from 0 to 21
-time_of_the_day = seq(0, 21, 3)
+time_of_the_day_number = seq(0, 21, 3)
+time_of_the_day = c("hour0", "hour3", "hour6", "hour9", "hour12", "hour15", "hour18", "hour21")
 
 pond_depth = 1.5204 # in meters
 each_layer_depth = pond_depth / 3
@@ -51,9 +52,12 @@ Now, there are 6939 days from 2001 to 2019. We will run a loop for each of these
 
 ```{r}
 # days_2001_to_2019 = c(rep(c(rep(365,3),366),4), rep(365, 3))
-days_2017_to_2019 = rep(365, 3)
-(cumsum_days = cumsum(days_2017_to_2019))
-all_years = seq(2017,2019,1)
+# days_2017_to_2019 = rep(365, 3)
+days_2018_to_2019 = rep(365, 2)
+# (cumsum_days = cumsum(days_2017_to_2019))
+(cumsum_days = cumsum(days_2018_to_2019))
+# all_years = seq(2017,2019,1)
+all_years = seq(2018,2019,1)
 
 month_no_leap_year = c(31, 28, 31, 30, 31, 30, 31, 30, 31, 31, 30, 31)
 # length(month_no_leap_year)
@@ -68,7 +72,8 @@ month_no_leap_year = c(31, 28, 31, 30, 31, 30, 31, 30, 31, 31, 30, 31)
 
 find_day_month_and_year = function(random_day){
   position = min(which(random_day<=cumsum_days)) # This is useful to find the year corresponding to a day starting from January 1, 2001
-  all_years = seq(2017,2019,1)
+  # all_years = seq(2017,2019,1)
+  all_years = seq(2018,2019,1)
   year_of_the_day = all_years[position]
   if(random_day <= 365){
     (day = random_day)
@@ -247,10 +252,6 @@ To do this, we first need to convert **time**, **day** and **area** to factor fo
 
 ```{r}
 diurnal_air_temp = read.csv("diurnal_air_temp.csv")
-```
-
-
-```{r}
 diurnal_air_temp$time = factor(diurnal_air_temp$time)
 diurnal_air_temp$day = factor(diurnal_air_temp$day)
 diurnal_air_temp$area = factor(diurnal_air_temp$area)
@@ -711,9 +712,9 @@ calculate_phi_sn(2, 2, 6, 2)
 ## Use tmax_air and tmin_air from the diurnal data of air temperature computed before
 
 ```{r}
-calculate_phi_at = function(three_hour, place, cloud_fraction, day_arg, year_arg){
+calculate_phi_at = function(three_hour, cloud_fraction, day_arg, year_arg){
   # Get the time in hour
-  hour = time_of_the_day[three_hour]
+  hour = time_of_the_day_number[three_hour]
   
   # load the diurnal air temperature data
   air_temp = read.csv("diurnal_air_temp.csv")
@@ -721,7 +722,7 @@ calculate_phi_at = function(three_hour, place, cloud_fraction, day_arg, year_arg
   air_temp = air_temp[air_temp$time == hour, ]
   air_temp = air_temp[air_temp$day == day_arg, ]  
   air_temp = air_temp[air_temp$year == year_arg, ] 
-  air_temp = air_temp[air_temp$area == areas[place], ] 
+  air_temp = air_temp[air_temp$area == areas[2], ] 
   t_ak = air_temp$air_temp # Already in Kelvin
 
   # t_ak = ((tmax_air + tmin_air)/2 + (tmax_air - tmin_air)*0.4484 *(sin(2*(pi/24)*(hour + 6) - 2.7489) + 0.2706 * sin(2 * (2 * (pi/24)* (hour + 6) - 2.7489)))) + 273.15
@@ -739,20 +740,20 @@ calculate_phi_at = function(three_hour, place, cloud_fraction, day_arg, year_arg
 Let's check the value of this function **phi_at()** for a particular day, day 1 at 3 PM for Srimangal.
 
 ```{r}
-calculate_phi_at(6, 2, 0.3, 2, 2017)
+calculate_phi_at(4, 0.3, 1, 2017)
 ```
 
 ### Calculate phi_ws
 
 ```{r}
-calculate_phi_ws = function(place, three_hour, layer_no, day_arg, year_arg){
+calculate_phi_ws = function(three_hour, day_arg, year_arg){
   # T_wk is the water surface temperature in Kelvin
   
   # The following file heat_layers.csv contains the output of the simulation
-  heat_layers = read.csv("simulated_data.csv")
+  heat_layers = read.csv("simulated_data_for_output.csv")
   
-  heat_layers = heat_layers[heat_layers$layer == layer_no, ]
-  heat_layers = heat_layers[heat_layers$area == areas[place], ]
+  # heat_layers = heat_layers[heat_layers$layer == layer_no, ]
+  # heat_layers = heat_layers[heat_layers$area == areas[place], ]
   if(three_hour!=1){
     heat_layers = heat_layers[heat_layers$time == time_of_the_day[three_hour-1], ] # Get the heat content computed for the last three-hour time period 
   } else{
@@ -761,12 +762,12 @@ calculate_phi_ws = function(place, three_hour, layer_no, day_arg, year_arg){
   print(paste0("Inside calculate_phi_ws(), the value of day is: ", day_arg))
   heat_layers = heat_layers[heat_layers$day == day_arg, ]
   heat_layers =  heat_layers[heat_layers$year == year_arg, ]
-  T_wk = heat_layers$temp + 273.15
+  T_wk = heat_layers$water_temp + 273.15
   # T_wk = heat_layers$temp
   # Calculate hourly phi_ws
   phi_ws = 0.97 * sigma_const * (T_wk^4)
   # Now, calculate three-hourly phi_ws
-  three_hours_phi_ws = phi_ws # * 3
+  three_hours_phi_ws = phi_ws * 3
   
   # Return phi_ws for three hours or three_hours_phi_ws
   return(three_hours_phi_ws)
@@ -776,31 +777,31 @@ calculate_phi_ws = function(place, three_hour, layer_no, day_arg, year_arg){
 Let's check the value of this function **phi_ws()** for a particular day, day 1, 2001 at 9 AM for Srimangal.
 
 ```{r}
-calculate_phi_ws(2, 4, 1, 1, 2017)
+calculate_phi_ws(4, 1, 2017)
 ```
 
 ### Calculate phi_e
 
 ```{r}
-calculate_phi_e = function(i, place, three_hour, layer_no, day_arg, year_arg){
+calculate_phi_e = function(i, three_hour, day_arg, year_arg){
   
   # N, empirical coefficient from Lake Hefner, unit KJm-2km-1mmHg-1
-    N = 5.0593
-    
-    daily_data = read_met_data(i, place)
+  N = 5.0593
   
-    # solar_daily = daily_data$insolation
-    wind_speed_2m = daily_data$wind_speed_2m
-    
-    # wind speed 2 m above the surface
-    W2 = wind_speed_2m * 3.6
+  daily_data = read_met_data(i, 2)
+
+  # solar_daily = daily_data$insolation
+  wind_speed_2m = daily_data$wind_speed_2m
+  
+  # wind speed 2 m above the surface
+  W2 = wind_speed_2m
   
   # T_wc is water surface temperature in Celsius
   # The following file heat_layers.csv contains the output of the simulation
-  heat_layers = read.csv("simulated_data.csv")
+  heat_layers = read.csv("simulated_data_for_output.csv")
   
-  heat_layers = heat_layers[heat_layers$layer == layer_no, ]
-  heat_layers = heat_layers[heat_layers$area == areas[place], ]
+  # heat_layers = heat_layers[heat_layers$layer == layer_no, ]
+  # heat_layers = heat_layers[heat_layers$area == areas[place], ]
   if(three_hour!=1){
     heat_layers = heat_layers[heat_layers$time == time_of_the_day[three_hour-1], ] # Get the heat content computed for the last three-hour time period 
   } else{
@@ -808,9 +809,9 @@ calculate_phi_e = function(i, place, three_hour, layer_no, day_arg, year_arg){
   }
   heat_layers = heat_layers[heat_layers$day == day_arg, ]
   heat_layers =  heat_layers[heat_layers$year == year_arg, ]
-  T_wc = heat_layers$temp
+  T_wc = heat_layers$water_temp
   
-  tmin_air_data = daily_data[daily_data$district == areas[place], ]
+  tmin_air_data = daily_data[daily_data$district == areas[2], ]
   tmin_air = tmin_air_data$min_temp
   
   # T_d is the average daily dew-point temperature
@@ -834,23 +835,22 @@ calculate_phi_e = function(i, place, three_hour, layer_no, day_arg, year_arg){
 ```
 
 ```{r}
-calculate_phi_e(1, 2, 4, 1, 1, 2017) # (i, place, three_hour, layer_no, day_arg, year_arg)
+calculate_phi_e(1, 4, 1, 2017) # (i, place, three_hour, layer_no, day_arg, year_arg)
 ```
 
 
 ```{r}
-calculate_phi_c = function(i, place, three_hour, layer_no, day_arg, year_arg){
+calculate_phi_c = function(i, three_hour, day_arg, year_arg){
   # wind speed 2 m above the surface
-  daily_data =read_met_data(i, place)
+  daily_data =read_met_data(i, 2)
   wind_speed_2m = daily_data$wind_speed_2m
-  # wind_speed_2m = daily_data$WS2M
-  W2 = wind_speed_2m * 3.6 # Convert ms-1 to Kmhr-1
+  W2 = wind_speed_2m
   
   # T_wc is water surface temperature in Celsius
-  heat_layers = read.csv("simulated_data.csv")
+  heat_layers = read.csv("simulated_data_for_output.csv")
   
-  heat_layers = heat_layers[heat_layers$layer == layer_no, ]
-  heat_layers = heat_layers[heat_layers$area == areas[place], ]
+  # heat_layers = heat_layers[heat_layers$layer == layer_no, ]
+  # heat_layers = heat_layers[heat_layers$area == areas[place], ]
   if(three_hour!=1){
     heat_layers = heat_layers[heat_layers$time == time_of_the_day[three_hour-1], ] # Get the heat content computed for the last three-hour time period 
   } else{
@@ -858,10 +858,10 @@ calculate_phi_c = function(i, place, three_hour, layer_no, day_arg, year_arg){
   }
   heat_layers = heat_layers[heat_layers$day == day_arg, ]
   heat_layers =  heat_layers[heat_layers$year == year_arg, ]
-  T_wc = heat_layers$temp
+  T_wc = heat_layers$water_temp
   
   # Get the time in hour
-  hour = time_of_the_day[three_hour]
+  hour = time_of_the_day_number[three_hour]
   
   
   # load the diurnal air temperature data
@@ -884,7 +884,7 @@ calculate_phi_c = function(i, place, three_hour, layer_no, day_arg, year_arg){
 ```
 
 ```{r}
-calculate_phi_c(1, 2, 4, 1, 1, 2017) # (i, place, three_hour, layer_no, day_arg, year_arg)
+calculate_phi_c(1, 4, 1, 2017) # (i, place, three_hour, layer_no, day_arg, year_arg)
 ```
 
 
@@ -957,7 +957,7 @@ calculate_T_sed(1, 4, 2)
 calculate_phi_sed = function(place, three_hour, day_arg, year_arg){
   # T_bot = bottom_layer_temp[i, time_of_the_day[three_hour]]
   layer_no = 3
-  heat_layers = read.csv("simulated_data.csv")
+  heat_layers = read.csv("simulated_data_for_output.csv")
   
   heat_layers = heat_layers[heat_layers$layer == layer_no, ]
   heat_layers = heat_layers[heat_layers$area == areas[place], ]
@@ -1016,17 +1016,17 @@ calculate_phi_gw(1, 4, 1)
 
 
 ```{r}
-calculate_phi_dz = function(place, three_hour, layer_no, day_arg, year_arg){
+calculate_phi_dz = function(three_hour, day_arg, year_arg){
   # T_wc is water surface temperature in Celsius
   
   c_pw = 4.1816 # heat capacity of water, unit kJK-1kg-1
   A_v = 1 # idealized volume element surface area
   
   # Calculating T_wc or water temperature in 0 C
-  heat_layers = read.csv("simulated_data.csv")
+  heat_layers = read.csv("simulated_data_for_output.csv")
   
-  heat_layers = heat_layers[heat_layers$layer == layer_no, ]
-  heat_layers = heat_layers[heat_layers$area == areas[place], ]
+  # heat_layers = heat_layers[heat_layers$layer == layer_no, ]
+  # heat_layers = heat_layers[heat_layers$area == areas[place], ]
   if(three_hour!=1){
     heat_layers = heat_layers[heat_layers$time == time_of_the_day[three_hour-1], ] # Get the heat content computed for the last three-hour time period 
   } else{
@@ -1035,7 +1035,7 @@ calculate_phi_dz = function(place, three_hour, layer_no, day_arg, year_arg){
   
   heat_layers = heat_layers[heat_layers$day == day_arg, ]
   heat_layers =  heat_layers[heat_layers$year == year_arg, ]
-  T_wc = heat_layers$temp
+  T_wc = heat_layers$water_temp
   
   # Calculating rho_w
   rho_w = (0.99987 + (0.69 * (10 ** (-5))) * T_wc) - ((8.89 * (10 ** (-6))) * (T_wc)**2) + ((7.4 * (10 ** (-8))) * (T_wc ** 3)) * 1000
@@ -1050,7 +1050,7 @@ calculate_phi_dz = function(place, three_hour, layer_no, day_arg, year_arg){
 ```
 
 ```{r}
-calculate_phi_dz(1, 4, 1, 1, 2017)
+calculate_phi_dz(4, 1, 2017)
 ```
 
 
@@ -1083,12 +1083,16 @@ calculate_heat_flux_layer_1 = function(i, place, three_hour, cloud_fraction){
   phi_e =  calculate_phi_e(i, place, three_hour, 1, day_f, year_f)
   print("phi_e done")
   print(phi_e)
+  
+  
+  
+  
   phi_c = calculate_phi_c(i, place, three_hour, 1, day_f, year_f) # (i, place, three_hour, layer_no, day_arg, year_arg)
   print("phi_c done")
   print(phi_c)
-  phi_dz = calculate_phi_dz(place, three_hour, 1, day_f, year_f)
-  print("phi_dz done")
-  print(phi_dz)
+  # phi_dz = calculate_phi_dz(place, three_hour, 1, day_f, year_f)
+  # print("phi_dz done")
+  # print(phi_dz)
   phi_net = phi_sn + phi_at - phi_ws - phi_e + phi_c + phi_dz 
   
 
@@ -1141,8 +1145,8 @@ calculate_heat_flux_layer_1(1, 1, 1, 0.3)
 ### Return different values for layer 1
 
 ```{r}
-calculate_and_return_heat_flux_layer_1 = function(i, place, three_hour, cloud_fraction){
-  day_year = find_day_and_year(i)
+calculate_and_return_heat_flux_layer_1 = function(i, three_hour, cloud_fraction){
+  day_year = find_day_month_and_year(i)
   day_f = day_year$day
   year_f = day_year$year
   
@@ -1156,39 +1160,51 @@ calculate_and_return_heat_flux_layer_1 = function(i, place, three_hour, cloud_fr
   phi_sn = calculate_phi_sn(i, day_f, three_hour, place)
   print("phi_sn done")
   print(phi_sn)
-  phi_at = calculate_phi_at(three_hour, place, cloud_fraction, day_f, year_f)
+  phi_at = calculate_phi_at(three_hour, cloud_fraction, day_f, year_f)
   print("phi_at done")
   print(phi_at)
-  phi_ws = calculate_phi_ws(place, three_hour, 1, day_f, year_f)
+  phi_ws = calculate_phi_ws(three_hour, day_f, year_f) # (three_hour, day_arg, year_arg)
   print("phi_ws done")
   print(phi_ws)
-  phi_e =  calculate_phi_e(i, place, three_hour, 1, day_f, year_f)
+  phi_e =  calculate_phi_e(i, three_hour, day_f, year_f) # (i, three_hour, day_arg, year_arg)
   print("phi_e done")
   print(phi_e)
-  phi_c = calculate_phi_c(i, place, three_hour, 1, day_f, year_f) # (i, place, three_hour, layer_no, day_arg, year_arg)
+  phi_c = calculate_phi_c(i, three_hour, day_f, year_f) # (i, three_hour, day_arg, year_arg)
   print("phi_c done")
   print(phi_c)
-  phi_dz = calculate_phi_dz(place, three_hour, 1, day_f, year_f)
+  phi_dz = calculate_phi_dz(three_hour, day_f, year_f) # (three_hour, day_arg, year_arg)
   print("phi_dz done")
   print(phi_dz)
   phi_net = phi_sn + phi_at - phi_ws - phi_e + phi_c + phi_dz 
   
   
     # Get the time in hour
-  hour = time_of_the_day[three_hour]
+  hour = time_of_the_day_number[three_hour]
   
   air_temp = read.csv("diurnal_air_temp.csv")
   air_temp = air_temp[air_temp$time == hour, ]
-  air_temp = air_temp[air_temp$day == day_arg, ]  
-  air_temp = air_temp[air_temp$year == year_arg, ] 
-  air_temp = air_temp[air_temp$area == areas[place], ] 
+  air_temp = air_temp[air_temp$day == day_f, ]  
+  air_temp = air_temp[air_temp$year == year_f, ] 
+  air_temp = air_temp[air_temp$area == areas[2], ] 
   # Air temperature in degree Celsius
-  T_ac = air_temp$air_temp
+  T_ac = air_temp$air_temp - 273.15
   
-  return(phi_net)
+  net_heat_and_air_temp = list(phi_sn = phi_sn, phi_at = phi_at, phi_ws = phi_ws, phi_e = phi_e, phi_c = phi_c, phi_dz = phi_dz, phi_net = phi_net, air_temp = T_ac)
+  
+  return(net_heat_and_air_temp)
 }
 ```
 
+
+```{r}
+flux_values = calculate_and_return_heat_flux_layer_1(1, 4, 0.2)
+```
+
+```{r}
+(phi_sn_1 = flux_values$phi_sn)
+(phi_at_1 = flux_values$phi_at)
+(air_temp_1 = flux_values$air_temp)
+```
 
 
 
@@ -1196,7 +1212,7 @@ calculate_and_return_heat_flux_layer_1 = function(i, place, three_hour, cloud_fr
 
 ```{r}
 
-simulate_and_save_pond_temperature_for_a_day = function(i, place, cloud_fraction, sdd){
+simulate_and_save_pond_temperature_for_a_day = function(i, cloud_fraction, sdd){
   
   
   # Now, simulate net heat flux, heat and temperature for all three layers in a pond
@@ -1210,12 +1226,12 @@ simulate_and_save_pond_temperature_for_a_day = function(i, place, cloud_fraction
     } else if(i >= 2 & j==1){
       # daily_data = read_met_data(i-1) # Because j = 1 means first 3-hour period which is 12 AM. We need data of 9 PM of the previous day
       # First determine the day in a year and the year 
-      day_year = find_day_and_year(i-1)
+      day_year = find_day_month_and_year(i-1)
       new_i = i - 1
     } else{
       # daily_data = read_met_data(i)
       # First determine the day in a year and the year 
-      day_year = find_day_and_year(i)
+      day_year = find_day_month_and_year(i)
       new_i = i
     }
     
@@ -1231,23 +1247,21 @@ simulate_and_save_pond_temperature_for_a_day = function(i, place, cloud_fraction
     print(paste0("year is: ", year_2))
     print(paste0("time period is: ", time_of_the_day[j]))
     
-    net_heat_flux_layer_1 = calculate_heat_flux_layer_1(new_i, place, j, cloud_fraction) # calculate_heat_flux_layer_1(i, place, three_hour, cloud_fraction)
-    print(paste0("net_heat_flux_layer_1 is: "))
-    print(net_heat_flux_layer_1)
-    net_heat_flux_layer_2 = calculate_heat_flux_layer_2(new_i, place, j, sdd) # calculate_heat_flux_layer_2(i, place, three_hour, sdd)
-    print(paste0("net_heat_flux_layer_2 is: ", net_heat_flux_layer_2))
-    net_heat_flux_layer_3 = calculate_heat_flux_layer_3(new_i, place, j, sdd) # calculate_heat_flux_layer_3(i, place, three_hour, sdd)
-    print(paste0("net_heat_flux_layer_3 is: ", net_heat_flux_layer_3))
-      
-    # Get the data of the last record in the simulated_data_.csv
-    # loaded_data = read.csv("simulated_data.csv")
-    # loaded_data = tail(loaded_data, n=1)
-      
+    net_heat_flux_layer_1 = calculate_and_return_heat_flux_layer_1(new_i, j, cloud_fraction) # calculate_heat_flux_layer_1(i, place, three_hour, cloud_fraction)
+    air_temp = net_heat_flux_layer_1$air_temp
+    phi_sn = net_heat_flux_layer_1$phi_sn
+    phi_at = net_heat_flux_layer_1$phi_at
+    phi_ws = net_heat_flux_layer_1$phi_ws
+    phi_e = net_heat_flux_layer_1$phi_e
+    phi_c = net_heat_flux_layer_1$phi_c
+    phi_dz = net_heat_flux_layer_1$phi_dz
+    net_heat = net_heat_flux_layer_1$phi_net
+
     # Get the heat in each of the layer
-    heat_layers = read.csv("simulated_data.csv")
+    heat_layers = read.csv("simulated_data_for_output.csv")
   
       
-    heat_layers = heat_layers[heat_layers$area == areas[place], ]
+    # heat_layers = heat_layers[heat_layers$area == areas[place], ]
     if(j==1){
       heat_layers = heat_layers[heat_layers$time == time_of_the_day[8], ]
     }else{
@@ -1256,76 +1270,44 @@ simulate_and_save_pond_temperature_for_a_day = function(i, place, cloud_fraction
     heat_layers = heat_layers[heat_layers$day == day_2, ]
     heat_layers =  heat_layers[heat_layers$year == year_2, ]
     print("The value of heat_layers dataframe is: ")
-    print(heat_layers)
+    # print(heat_layers)
       
       
-    layer_1 = heat_layers[heat_layers$layer == 1, ]
+    # layer_1 = heat_layers[heat_layers$layer == 1, ]
+    layer_1 = heat_layers
     # layer_2 = heat_layers[heat_layers$layer == 2, ]
     # layer_3 = heat_layers[heat_layers$layer == 3, ]
 
-    heat_layer_1 = layer_1$heat + net_heat_flux_layer_1
+    heat_layer_1 = layer_1$heat + net_heat
     print(paste0("heat_layer_1 is: ", heat_layer_1))
-    # heat_layer_2 = layer_1$heat + net_heat_flux_layer_2
-    # print(paste0("heat_layer_2 is: ", heat_layer_2))
-    # heat_layer_3 = layer_1$heat + net_heat_flux_layer_3
-    # print(paste0("heat_layer_3 is: ", heat_layer_3))
+
       
     # Calculate T_wc so that we can calculate rho_w
 
       
-    T_wc_1 = layer_1$temp
+    T_wc_1 = layer_1$water_temp
     # T_wc_2 = layer_2$temp
     # T_wc_3 = layer_3$temp
       
     # T_wc = calculate_water_surface_temperature(i, place, three_hour)
     rho_w_1 = (0.99987 + (0.69 * (10 ** (-5))) * T_wc_1) - ((8.89 * (10 ** (-6))) * (T_wc_1)**2) + ((7.4 * (10 ** (-8))) * (T_wc_1 ** 3)) * 1000
-    # rho_w_2 = (0.99987 + (0.69 * (10 ** (-5))) * T_wc_2) - ((8.89 * (10 ** (-6))) * (T_wc_2)**2) + ((7.4 * (10 ** (-8))) * (T_wc_2 ** 3)) * 1000
-    # rho_w_3 = (0.99987 + (0.69 * (10 ** (-5))) * T_wc_3) - ((8.89 * (10 ** (-6))) * (T_wc_3)**2) + ((7.4 * (10 ** (-8))) * (T_wc_3 ** 3)) * 1000
-    # c_pw is the heat capacity of water
+
     c_pw = 4.1816 
       
     # Get the temperature in each of the layer
-    temp_layer_1 = layer_1$temp + (heat_layer_1)/(rho_w_1 * c_pw)
-    # temp_layer_2 = layer_2$temp + (heat_layer_2)/(rho_w_2 * c_pw)
-    # temp_layer_3 = layer_3$temp + (heat_layer_3)/(rho_w_3 * c_pw)
+    water_temp = layer_1$water_temp + (heat_layer_1)/(rho_w_1 * c_pw)
 
     
-    
     # We need to extract the date
-    current_day_year = find_day_and_year(i)
+    current_day_year = find_day_month_and_year(i)
     day_3 = current_day_year$day
     year_3 = current_day_year$year
     rm(current_day_year) # Remove this dataframe current_day_year
-    # if(i >= 2 & j==1){
-    #   day =  day + 1 # For 0 AM, we did calculation for the previous day; now set it to the current day
-    # }
-    print(paste0("One dataframe is to be created for the time period ", j))
-    layers = c(1,2,3)
-    day_time = rep(time_of_the_day[j], 3)
-    day_in_the_year = rep(day_3, 3)
-    year_repeated = rep(year_3, 3)
-    heat_all = c(heat_layer_1, heat_layer_2, heat_layer_3)
-    temp_all = c(temp_layer_1, temp_layer_2, temp_layer_3)
-    area_all = rep(areas[place], 3)
-    print("layers is: ")
-    print(layers)
-    print("day_time or time_of_the_day[j] is ")
-    print(day_time)
-    print("day is ")
-    print(day_in_the_year)
-    print("heat is: ")
-    print(heat_all)
-    print("temp is: ")
-    print(temp_all)
-    print("area is: ")
-    print(area_all)
-    print("")
-    print("")
     
-    simulated_data = data.frame(layer = layers, time = day_time, day = day_in_the_year, year =year_repeated, heat = heat_all, temp = temp_all, area = area_all)
+    simulated_data = data.frame(time = time_of_the_day[j], day = day_3, year = year_3, air_temp = air_temp, water_temp = water_temp, phi_sn = phi_sn, phi_at = phi_at, phi_ws = phi_ws, phi_e = phi_e, phi_c = phi_c, phi_dz = phi_dz, heat = heat_layer_1)
     # Add data to the CSV file simulated_data_area.csv
 
-    write.table(simulated_data, "simulated_data.csv", sep = ",", col.names = !file.exists("simulated_data.csv"), append = T)
+    write.table(simulated_data, "simulated_data_for_output.csv", sep = ",", col.names = !file.exists("simulated_data_for_output.csv"), append = T)
     print(simulated_data)
     print(paste0("One dataframe is created for the time period ", j))
     print("")
@@ -1336,240 +1318,6 @@ simulate_and_save_pond_temperature_for_a_day = function(i, place, cloud_fraction
 ```
 
 
-
-### Heat flux for layer 2
-
-```{r}
-calculate_heat_flux_layer_2 = function(i, place, three_hour, sdd){
-  
-  ########################################################################################################################################################################
-  ######################################   Volume 2  ---- Calculate phi_net or net heat flux for the pond for volume 2    ################################################
-  ######################################                          phi_net = phi_c - phi_snz + phi_dz                      ################################################
-  ########################################################################################################################################################################
-  
-  day_year = find_day_and_year(i)
-  day_f = day_year$day
-  year_f = day_year$year
-  
-  phi_c = calculate_phi_c(i, place, three_hour, 1, day_f, year_f) # (i, place, three_hour, layer_no, day_arg, year_arg)
-  phi_snz = calculate_phi_sn_z(i, place, three_hour, sdd, 2, day_f) # (i, place, three_hour, sdd, layer_number, day_arg)
-  phi_dz = calculate_phi_dz(place, three_hour, 2, day_f, year_f) # (place, three_hour, layer_no, day_arg, year_arg)
-  phi_net = phi_c - phi_snz + phi_dz
-  return(phi_net)
-}
-
-```
-
-```{r}
-calculate_heat_flux_layer_2(1, 1, 1, 0.3) # (i, place, three_hour, sdd)
-```
-
-
-### Heat flux for layer 3
-
-```{r}
-calculate_heat_flux_layer_3 = function(i, place, three_hour, sdd){
-  
-  ########################################################################################################################################################################
-  ######################################          Volume 3  ---- Calculate phi_net or net heat flux for the pond            ##############################################
-  ######################################               phi_net = phi_c - phi_snz + phi_sed - phi_gw + phi_dz                ##############################################
-  ########################################################################################################################################################################
-  
-  day_year = find_day_and_year(i)
-  day_f = day_year$day
-  year = day_year$year
-  
-  phi_c = calculate_phi_c(i, place, three_hour, 1, day_f, year_f) # calculate_phi_c(i, place, three_hour, layer_no, day_arg, year_arg)
-  phi_snz = calculate_phi_sn_z(i, place, three_hour, sdd, 2, day_f) # calculate_phi_sn_z(i, place, three_hour, sdd, layer_number, day_arg)
-  phi_sed = calculate_phi_sed(place, three_hour, day_f, year_f) # calculate_phi_sed(place, three_hour, day_arg, year_arg)
-  phi_gw = calculate_phi_gw(place, three_hour, day_f) # calculate_phi_gw(place, three_hour, day_arg)
-  phi_dz = calculate_phi_dz(place, three_hour, 2, day_f, year_f) # calculate_phi_dz(place, three_hour, layer_no, day_arg, year_arg)
-  
-  phi_net = phi_c - phi_snz + phi_sed - phi_gw + phi_dz 
-  return(phi_net)
-}
-```
-
-```{r}
-calculate_phi_c(1, 1, 1, 1, 1, 2001)
-```
-
-
-```{r}
-calculate_phi_sn_z(1, 1, 1, 1.1, 3, 2)
-```
-
-```{r}
-calculate_phi_sed(1, 1, 1, 2001)
-```
-
-```{r}
-calculate_phi_gw(1, 1, 1)
-```
-
-```{r}
-calculate_phi_dz(1, 1, 2, 1, 2001)
-```
-
-```{r}
-calculate_heat_flux_layer_3(1, 1, 1, 1.1)
-```
-
-
-### Simulate pond temperature for a day
-
-
-```{r}
-# simulated_data = data.frame(layer = rep(c(1,2,3),2), time = rep(6, 6), day = rep(1, 6), year = rep(20, 6), heat = rep(0, 6), temp = c(rep(15, 3), rep(initial_temp_khu, 3)), area = c(rep(areas[1], 3), rep(areas[2], 3)))
-# write.table(simulated_data, "simulated_data.csv", sep = ",", col.names = !file.exists("simulated_data.csv"), append = T)
-```
-
-```{r}
-areas = c("srimangal", "khulna")
-time_of_the_day = seq(0, 21, 3)
-```
-
-
-```{r}
-
-simulate_pond_temperature_for_a_day = function(i, place, cloud_fraction, sdd){
-  
-  
-  # Now, simulate net heat flux, heat and temperature for all three layers in a pond
-  # Do it for three-hourly time periods startign with 6 AM assuming the minimum temperature occurs at 6 AM
-  
-  for(j in 1:8){
-    if(i==1 & (j== 1 | j==2 | j==3)){
-      print("I am skipping the loop")
-      print("")
-      next
-    } else if(i >= 2 & j==1){
-      # daily_data = read_met_data(i-1) # Because j = 1 means first 3-hour period which is 12 AM. We need data of 9 PM of the previous day
-      # First determine the day in a year and the year 
-      day_year = find_day_and_year(i-1)
-      new_i = i - 1
-    } else{
-      # daily_data = read_met_data(i)
-      # First determine the day in a year and the year 
-      day_year = find_day_and_year(i)
-      new_i = i
-    }
-    
-    print("The value of i is: ")
-    print(i)
-    print("The value of j is: ")
-    print(j)
-    
-    day_2 = day_year$day
-    year_2 = day_year$year
-    # 
-    print(paste0("day is: ", day_2))
-    print(paste0("year is: ", year_2))
-    print(paste0("time period is: ", time_of_the_day[j]))
-    
-    net_heat_flux_layer_1 = calculate_heat_flux_layer_1(new_i, place, j, cloud_fraction) # calculate_heat_flux_layer_1(i, place, three_hour, cloud_fraction)
-    print(paste0("net_heat_flux_layer_1 is: "))
-    print(net_heat_flux_layer_1)
-    # net_heat_flux_layer_2 = calculate_heat_flux_layer_2(new_i, place, j, sdd) # calculate_heat_flux_layer_2(i, place, three_hour, sdd)
-    # print(paste0("net_heat_flux_layer_2 is: ", net_heat_flux_layer_2))
-    # net_heat_flux_layer_3 = calculate_heat_flux_layer_3(new_i, place, j, sdd) # calculate_heat_flux_layer_3(i, place, three_hour, sdd)
-    # print(paste0("net_heat_flux_layer_3 is: ", net_heat_flux_layer_3))
-      
-    # Get the data of the last record in the simulated_data_.csv
-    # loaded_data = read.csv("simulated_data.csv")
-    # loaded_data = tail(loaded_data, n=1)
-      
-    # Get the heat in each of the layer
-    heat_layers = read.csv("simulated_data.csv")
-  
-      
-    heat_layers = heat_layers[heat_layers$area == areas[place], ]
-    if(j==1){
-      heat_layers = heat_layers[heat_layers$time == time_of_the_day[8], ]
-    }else{
-      heat_layers = heat_layers[heat_layers$time == time_of_the_day[j-1], ]
-    }
-    heat_layers = heat_layers[heat_layers$day == day_2, ]
-    heat_layers =  heat_layers[heat_layers$year == year_2, ]
-    print("The value of heat_layers dataframe is: ")
-    print(heat_layers)
-      
-      
-    layer_1 = heat_layers[heat_layers$layer == 1, ]
-    layer_2 = heat_layers[heat_layers$layer == 2, ]
-    layer_3 = heat_layers[heat_layers$layer == 3, ]
-
-    heat_layer_1 = layer_1$heat + net_heat_flux_layer_1
-    print(paste0("heat_layer_1 is: ", heat_layer_1))
-    heat_layer_2 = layer_1$heat + net_heat_flux_layer_2
-    print(paste0("heat_layer_2 is: ", heat_layer_2))
-    heat_layer_3 = layer_1$heat + net_heat_flux_layer_3
-    print(paste0("heat_layer_3 is: ", heat_layer_3))
-      
-    # Calculate T_wc so that we can calculate rho_w
-
-      
-    T_wc_1 = layer_1$temp
-    T_wc_2 = layer_2$temp
-    T_wc_3 = layer_3$temp
-      
-    # T_wc = calculate_water_surface_temperature(i, place, three_hour)
-    rho_w_1 = (0.99987 + (0.69 * (10 ** (-5))) * T_wc_1) - ((8.89 * (10 ** (-6))) * (T_wc_1)**2) + ((7.4 * (10 ** (-8))) * (T_wc_1 ** 3)) * 1000
-    rho_w_2 = (0.99987 + (0.69 * (10 ** (-5))) * T_wc_2) - ((8.89 * (10 ** (-6))) * (T_wc_2)**2) + ((7.4 * (10 ** (-8))) * (T_wc_2 ** 3)) * 1000
-    rho_w_3 = (0.99987 + (0.69 * (10 ** (-5))) * T_wc_3) - ((8.89 * (10 ** (-6))) * (T_wc_3)**2) + ((7.4 * (10 ** (-8))) * (T_wc_3 ** 3)) * 1000
-    # c_pw is the heat capacity of water
-    c_pw = 4.1816 
-      
-    # Get the temperature in each of the layer
-    temp_layer_1 = layer_1$temp + (heat_layer_1)/(rho_w_1 * c_pw)
-    temp_layer_2 = layer_2$temp + (heat_layer_2)/(rho_w_2 * c_pw)
-    temp_layer_3 = layer_3$temp + (heat_layer_3)/(rho_w_3 * c_pw)
-
-    
-    
-    # We need to extract the date
-    current_day_year = find_day_and_year(i)
-    day_3 = current_day_year$day
-    year_3 = current_day_year$year
-    rm(current_day_year) # Remove this dataframe current_day_year
-    # if(i >= 2 & j==1){
-    #   day =  day + 1 # For 0 AM, we did calculation for the previous day; now set it to the current day
-    # }
-    print(paste0("One dataframe is to be created for the time period ", j))
-    layers = c(1,2,3)
-    day_time = rep(time_of_the_day[j], 3)
-    day_in_the_year = rep(day_3, 3)
-    year_repeated = rep(year_3, 3)
-    heat_all = c(heat_layer_1, heat_layer_2, heat_layer_3)
-    temp_all = c(temp_layer_1, temp_layer_2, temp_layer_3)
-    area_all = rep(areas[place], 3)
-    print("layers is: ")
-    print(layers)
-    print("day_time or time_of_the_day[j] is ")
-    print(day_time)
-    print("day is ")
-    print(day_in_the_year)
-    print("heat is: ")
-    print(heat_all)
-    print("temp is: ")
-    print(temp_all)
-    print("area is: ")
-    print(area_all)
-    print("")
-    print("")
-    
-    simulated_data = data.frame(layer = layers, time = day_time, day = day_in_the_year, year =year_repeated, heat = heat_all, temp = temp_all, area = area_all)
-    # Add data to the CSV file simulated_data_area.csv
-
-    write.table(simulated_data, "simulated_data.csv", sep = ",", col.names = !file.exists("simulated_data.csv"), append = T)
-    print(simulated_data)
-    print(paste0("One dataframe is created for the time period ", j))
-    print("")
-    print("")
-  }
-  
-}
-```
 
 **Running the above code will add simulation output for a single day to simulated_data.csv file**
 
@@ -1578,13 +1326,13 @@ Running the below line will add new data to **simulated_data.csv**. After runnin
 ####  Simulate pond temperature for day 1.
 
 ```{r}
-simulate_pond_temperature_for_a_day(1, 1, 0.3, 1.0)
+# simulate_and_save_pond_temperature_for_a_day(1, 0.3, 1.0)
 ```
 
 #### Simulate pond temperature for day 2
 
 ```{r}
-simulate_pond_temperature_for_a_day(2, 1, 0.3, 1.0) # simulate_pond_temperature_for_a_day(i, place, cloud_fraction, sdd)
+# simulate_pond_temperature_for_a_day(2, 1, 0.3, 1.0) # simulate_pond_temperature_for_a_day(i, place, cloud_fraction, sdd)
 ```
 
 
@@ -1599,21 +1347,38 @@ simulate_pond_temperature_for_a_day(2, 1, 0.3, 1.0) # simulate_pond_temperature_
 
 
 ```{r}
-simulate_over_many_years = function(total_days){
+# simulate_over_many_years = function(total_days){
+#   for(i in 1:total_days){
+#     for(j in 1:2){
+#       simulate_pond_temperature_for_a_day(i, j, 0.3, 1.0)
+#     }
+#   }
+# }
+
+simulate_over_some_days = function(total_days){
   for(i in 1:total_days){
-    for(j in 1:2){
-      simulate_pond_temperature_for_a_day(i, j, 0.3, 1.0)
-    }
+    simulate_and_save_pond_temperature_for_a_day(i, 0.3, 1.0)
   }
 }
 ```
 
 ```{r}
-# simulate_over_many_years(4)
+simulate_over_some_days(31)
 ```
 
 ```{r}
-# simulate_pond_temperature_for_a_day(2, 1, 0.3, 1.0)
+library(dplyr)
+library(tidyr)
+
+dd = read.csv("simulated_data_for_output_long.csv")
+
+dd$X = NULL
+
+new = gather(dd, variable, value, air_temp, water_temp, phi_at, phi_sn, phi_ws, phi_e, phi_c, phi_dz, heat) %>%
+  unite(var, variable, time) %>% 
+  spread(var, value)
+
+new
 ```
 
 
